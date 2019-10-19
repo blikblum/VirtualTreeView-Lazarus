@@ -31084,14 +31084,16 @@ begin
         end;
 
         // Erase rest of window not covered by a node.
-        if TargetRect.Top < MaximumBottom then
+        if TargetRect.Top < min(MaximumBottom,Window.Bottom) then
         begin
           {$ifdef DEBUG_VTV}Logger.Watch([lcPaintDetails],'UseBackground',UseBackground);{$endif}
           {$ifdef DEBUG_VTV}Logger.Watch([lcPaintDetails],'UseColumns',UseColumns);{$endif}
           // Keep the horizontal target position to determine the selection rectangle offset later (if necessary).
           BaseOffset := Target.X;
+          //R := Rect(TargetRect.Left, 0, TargetRect.Left, MaximumBottom - Target.Y);
+          R := Rect(TargetRect.Left, TargetRect.Top{-Target.Y}+2, TargetRect.Left, MaximumBottom { min(MaximumBottom,Window.Bottom)}-2);
           Target := TargetRect.TopLeft;
-          R := Rect(TargetRect.Left, 0, TargetRect.Left, MaximumBottom - Target.Y);
+
           TargetRect := Rect(0, 0, MaximumRight - Target.X, MaximumBottom - Target.Y);
           {$ifdef DEBUG_VTV}Logger.Send([lcPaintDetails],'NodeBitmap.Handle',NodeBitmap.Handle);{$endif}
 
@@ -31126,9 +31128,9 @@ begin
             begin
               // Consider here also colors of the columns.
              {$ifdef UseSetCanvasOrigin}
-             SetCanvasOrigin(PaintInfo.Canvas, Target.X, 0); // This line caused issue #313 when it was placed above the if-statement
+             SetCanvasOrigin(PaintInfo.Canvas, Target.X, Target.Y); // This line caused issue #313 when it was placed above the if-statement
              {$else}
-             SetWindowOrgEx(PaintInfo.Canvas.Handle, Target.X, 0, nil);
+             SetWindowOrgEx(PaintInfo.Canvas.Handle, 0{Target.X},Target.Y, nil);
              {$endif}
               if UseColumns then
               begin
@@ -31156,13 +31158,13 @@ begin
                   end;
 
                   // Initialize MaxRight.
-                  MaxRight := Target.X - 1;
+                  MaxRight := {2*}Target.X - 1;
 
                   PaintInfo.Canvas.Font.Color := FColors.GridLineColor;
                   while (FirstColumn <> InvalidColumn) and (MaxRight < TargetRect.Right + Target.X) do
                   begin
                     // Determine left and right coordinate of the current column
-                    ColLeft := Items[FirstColumn].Left;
+                    ColLeft := Items[FirstColumn].Left+Target.X;
                     ColRight := (ColLeft + Items[FirstColumn].FWidth);
 
                     // Check wether this column needs to be painted at all.
@@ -31185,6 +31187,7 @@ begin
                         PaintInfo.Canvas.Brush.Color := Items[FirstColumn].FColor
                       else
                         PaintInfo.Canvas.Brush.Color := FColors.BackGroundColor;
+                      //PaintInfo.Canvas.Brush.Color:=clRed;
                       PaintInfo.Canvas.FillRect(R);
                     end;
                     FirstColumn := GetNextVisibleColumn(FirstColumn);
@@ -31201,6 +31204,7 @@ begin
                        (not (hoAutoResize in FHeader.FOptions)) then
                       Inc(R.Left);
                     PaintInfo.Canvas.Brush.Color := FColors.BackGroundColor;
+                    //PaintInfo.Canvas.Brush.Color:=clBlue;
                     PaintInfo.Canvas.FillRect(R);
                   end;
                 end;

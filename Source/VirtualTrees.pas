@@ -12388,11 +12388,13 @@ begin
   //lcl
   FPanningWindow.Free;
 
-  // Just in case it didn't happen already release the edit link.
-  FEditLink := nil;
-  FClipboardFormats.Free;
   // Clear will also free the drag manager if it is still alive.
   Clear;
+  // Just in case it didn't happen already release the edit link.
+  // it is necessary to perform after cleaning, as the node can still be edited.
+  FEditLink := nil;
+  FClipboardFormats.Free;
+
   FDragImage.Free;
   FColors.Free;
   FBackground.Free;

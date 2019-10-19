@@ -31091,7 +31091,7 @@ begin
           // Keep the horizontal target position to determine the selection rectangle offset later (if necessary).
           BaseOffset := Target.X;
           //R := Rect(TargetRect.Left, 0, TargetRect.Left, MaximumBottom - Target.Y);
-          R := Rect(TargetRect.Left, TargetRect.Top{-Target.Y}+2, TargetRect.Left, MaximumBottom { min(MaximumBottom,Window.Bottom)}-2);
+          R := Rect(TargetRect.Left, TargetRect.Top{-Target.Y}, TargetRect.Left, MaximumBottom { min(MaximumBottom,Window.Bottom)});
           Target := TargetRect.TopLeft;
 
           TargetRect := Rect(0, 0, MaximumRight - Target.X, MaximumBottom - Target.Y);

@@ -2837,6 +2837,7 @@ type
     procedure SkipNode(Stream: TStream); virtual;
     procedure StartOperation(OperationKind: TVTOperationKind);
     procedure StartWheelPanning(const Position: TPoint); virtual;
+    procedure StopTimer(nIDEvent: UINT_PTR);
     procedure StopWheelPanning; virtual;
     procedure StructureChange(Node: PVirtualNode; Reason: TChangeReason); virtual;
     function SuggestDropEffect(Source: TObject; Shift: TShiftState; const Pt: TPoint; AllowedEffects: LongWord): LongWord; virtual;
@@ -10894,10 +10895,10 @@ begin
         if not (csDesigning in Treeview.ComponentState) then
         begin
           // make sure no auto scrolling is active...
-          KillTimer(Treeview.Handle, ScrollTimer);
+          Treeview.StopTimer(ScrollTimer);
           Treeview.DoStateChange([], [tsScrollPending, tsScrolling]);
           // ... pending editing is cancelled (actual editing remains active)
-          KillTimer(Treeview.Handle, EditTimer);
+          Treeview.StopTimer(EditTimer);
           Treeview.DoStateChange([], [tsEditPending]);
         end;
 
@@ -10995,7 +10996,7 @@ begin
             // Trigger header popup if there's one.
             if Assigned(Menu) then
             begin
-              KillTimer(Treeview.Handle, ScrollTimer);
+              Treeview.StopTimer(ScrollTimer);
               FColumns.FHoverIndex := NoColumn;
               Treeview.DoStateChange([], [tsScrollPending, tsScrolling]);
               Menu.PopupComponent := Treeview;
@@ -15391,7 +15392,7 @@ begin
     FIncrementalSearch := Value;
     if FIncrementalSearch = isNone then
     begin
-      KillTimer(Handle, SearchTimer);
+      StopTimer(SearchTimer);
       FSearchBuffer := '';
       FLastSearchNode := nil;
     end;
@@ -16310,7 +16311,7 @@ begin
   LeaveStates := [tsHint];
   if [tsWheelPanning, tsWheelScrolling] * FStates = [] then
   begin
-    KillTimer(Handle, ScrollTimer);
+    StopTimer(ScrollTimer);
     LeaveStates := LeaveStates + [tsScrollPending, tsScrolling];
   end;
   DoStateChange([], LeaveStates);
@@ -16562,11 +16563,11 @@ procedure TBaseVirtualTree.WMCancelMode(var Message: TLMessage);
 begin
   {$ifdef DEBUG_VTV}Logger.EnterMethod([lcMessages],'WMCancelMode');{$endif}
   // Clear any transient state.
-  KillTimer(Handle, ExpandTimer);
-  KillTimer(Handle, EditTimer);
-  KillTimer(Handle, ScrollTimer);
-  KillTimer(Handle, SearchTimer);
-  KillTimer(Handle, ThemeChangedTimer);
+  StopTimer(ExpandTimer);
+  StopTimer(EditTimer);
+  StopTimer(ScrollTimer);
+  StopTimer(SearchTimer);
+  StopTimer(ThemeChangedTimer);
   FSearchBuffer := '';
   FLastSearchNode := nil;
 
@@ -17493,10 +17494,10 @@ begin
   StopWheelPanning;
 
   // Don't let any timer continue if the tree is no longer the active control (except change timers).
-  KillTimer(Handle, ExpandTimer);
-  KillTimer(Handle, EditTimer);
-  KillTimer(Handle, ScrollTimer);
-  KillTimer(Handle, SearchTimer);
+  StopTimer(ExpandTimer);
+  StopTimer(EditTimer);
+  StopTimer(ScrollTimer);
+  StopTimer(SearchTimer);
   FSearchBuffer := '';
   FLastSearchNode := nil;
 
@@ -18043,13 +18044,13 @@ begin
           // When this event triggers then the user did not pressed any key for the specified timeout period.
           // Hence incremental searching is stopped.
           DoStateChange([], [tsIncrementalSearching]);
-          KillTimer(Handle, SearchTimer);
+          StopTimer(SearchTimer);
           FSearchBuffer := '';
           FLastSearchNode := nil;
         end;
       ThemeChangedTimer:
         begin
-          KillTimer(Handle, ThemeChangedTimer);
+          StopTimer(ThemeChangedTimer);
           RecreateWnd(Self);
         end;
     end;
@@ -18354,7 +18355,7 @@ begin
   else
   begin
     if tsChangePending in FStates then
-      KillTimer(Handle, ChangeTimer)
+      StopTimer(ChangeTimer)
     else
       DoStateChange([tsChangePending]);
 
@@ -18867,8 +18868,8 @@ begin
   //  see if there will be issues calling here
   InterruptValidation;
 
-  KillTimer(Handle, ChangeTimer);
-  KillTimer(Handle, StructureChangeTimer);
+  StopTimer(ChangeTimer);
+  StopTimer(StructureChangeTimer);
 
   {$ifdef Windows}
   if not (csDesigning in ComponentState) and (toAcceptOLEDrop in FOptions.FMiscOptions) then
@@ -19514,7 +19515,7 @@ begin
     begin
       if ((FStates * [tsScrollPending, tsScrolling]) <> []) then
       begin
-        KillTimer(Handle, ScrollTimer);
+        StopTimer(ScrollTimer);
         DoStateChange([], [tsScrollPending, tsScrolling]);
       end;
     end
@@ -19620,7 +19621,7 @@ function TBaseVirtualTree.DoCancelEdit: Boolean;
 // Called when the current edit action or a pending edit must be cancelled.
 
 begin
-  KillTimer(Handle, EditTimer);
+  StopTimer(EditTimer);
   DoStateChange([], [tsEditPending]);
   Result := (tsEditing in FStates) and FEditLink.CancelEdit;
   if Result then
@@ -19656,7 +19657,7 @@ end;
 procedure TBaseVirtualTree.DoChange(Node: PVirtualNode);
 
 begin
-  KillTimer(Handle, ChangeTimer);
+  StopTimer(ChangeTimer);
   if Assigned(FOnChange) then
     FOnChange(Self, Node);
 
@@ -19962,7 +19963,7 @@ var
   SourceTree: TBaseVirtualTree;
 
 begin
-  KillTimer(Handle, ExpandTimer);
+  StopTimer(ExpandTimer);
   if Assigned(FDropTargetNode) and (vsHasChildren in FDropTargetNode.States) and
     not (vsExpanded in FDropTargetNode.States) then
   begin
@@ -20016,8 +20017,8 @@ procedure TBaseVirtualTree.DoEdit;
 
 begin
   Application.CancelHint;
-  KillTimer(Handle, ScrollTimer);
-  KillTimer(Handle, EditTimer);
+  StopTimer(ScrollTimer);
+  StopTimer(EditTimer);
   DoStateChange([], [tsEditPending]);
   if Assigned(FFocusedNode) and not (vsDisabled in FFocusedNode.States) and
     not (toReadOnly in FOptions.FMiscOptions) and (FEditLink = nil) then
@@ -20062,7 +20063,7 @@ end;
 function TBaseVirtualTree.DoEndEdit: Boolean;
 
 begin
-  KillTimer(Handle, EditTimer);
+  StopTimer(EditTimer);
   Result := (tsEditing in FStates) and FEditLink.EndEdit;
   if Result then
   begin
@@ -20747,7 +20748,7 @@ begin
   if Assigned(Menu) then
   begin
     DoStateChange([tsPopupMenuShown]);
-    KillTimer(Handle, EditTimer);
+    StopTimer(EditTimer);
     Menu.PopupComponent := Self;
     with ClientToScreen(Position) do
       Menu.Popup(X, Y);
@@ -21028,7 +21029,7 @@ procedure TBaseVirtualTree.DoStructureChange(Node: PVirtualNode; Reason: TChange
 
 begin
   if HandleAllocated then
-    KillTimer(Handle, StructureChangeTimer);
+    StopTimer(StructureChangeTimer);
   if Assigned(FOnStructureChange) then
     FOnStructureChange(Self, Node, Reason);
 
@@ -21162,7 +21163,7 @@ begin
 
     if (FScrollDirections = []) and ([tsWheelPanning, tsWheelScrolling] * FStates = []) then
     begin
-      KillTimer(Handle, ScrollTimer);
+      StopTimer(ScrollTimer);
       DoStateChange([], [tsScrollPending, tsScrolling]);
     end;
   end;
@@ -21327,8 +21328,8 @@ var
 
 begin
   {$ifdef DEBUG_VTV}Logger.EnterMethod([lcDrag],'DragDrop');{$endif}
-  KillTimer(Handle, ExpandTimer);
-  KillTimer(Handle, ScrollTimer);
+  StopTimer(ExpandTimer);
+  StopTimer(ScrollTimer);
   DoStateChange([], [tsScrollPending, tsScrolling]);
   Formats := nil;
 
@@ -21480,7 +21481,7 @@ var
   Effect: LongWord;
 
 begin
-  KillTimer(Handle, ExpandTimer);
+  StopTimer(ExpandTimer);
 
   if not VTVDragManager.DropTargetHelperSupported and Assigned(VTVDragManager.DragSource) then
     TBaseVirtualTree(VTVDragManager.DragSource).FDragImage.HideDragImage;
@@ -21600,7 +21601,7 @@ begin
       FLastDropMode := NewDropMode;
       if HitInfo.HitNode <> FDropTargetNode then
       begin
-        KillTimer(Handle, ExpandTimer);
+        StopTimer(ExpandTimer);
         // The last target node is needed for the rectangle determination but must already be set for
         // the recapture call, hence it must be stored somewhere.
         LastNode := FDropTargetNode;
@@ -22491,7 +22492,7 @@ var
 
 begin
   //todo: handle correctly unicode char after WideString -> String conversion
-  KillTimer(Handle, SearchTimer);
+  StopTimer(SearchTimer);
 
   if FIncrementalSearch <> isNone then
   begin
@@ -22616,7 +22617,7 @@ begin
   MayEdit := not (tsEditing in FStates) and (toEditOnDblClick in FOptions.FMiscOptions);
   if tsEditPending in FStates then
   begin
-    KillTimer(Handle, EditTimer);
+    StopTimer(EditTimer);
     DoStateChange([], [tsEditPending]);
   end;
 
@@ -22735,7 +22736,7 @@ begin
 
   if tsEditPending in FStates then
   begin
-    KillTimer(Handle, EditTimer);
+    StopTimer(EditTimer);
     DoStateChange([], [tsEditPending]);
   end;
 
@@ -22967,7 +22968,7 @@ begin
     end;
     if DragKind = dkDock then
     begin
-      KillTimer(Handle, ScrollTimer);
+      StopTimer(ScrollTimer);
       DoStateChange([], [tsScrollPending, tsScrolling]);
     end;
     // Get the currently focused node to make multiple multi-selection blocks possible.
@@ -23046,7 +23047,7 @@ begin
 
     DoStateChange([], [tsOLEDragPending, tsOLEDragging, tsClearPending, tsDrawSelPending, tsToggleFocusedSelection,
       tsScrollPending, tsScrolling]);
-    KillTimer(Handle, ScrollTimer);
+    StopTimer(ScrollTimer);
 
     if tsMouseCheckPending in FStates then
     begin
@@ -23952,10 +23953,10 @@ begin
     StopWheelPanning;
 
     // Stop timers
-    KillTimer(Handle, ExpandTimer);
-    KillTimer(Handle, EditTimer);
-    KillTimer(Handle, ScrollTimer);
-    KillTimer(Handle, SearchTimer);
+    StopTimer(ExpandTimer);
+    StopTimer(EditTimer);
+    StopTimer(ScrollTimer);
+    StopTimer(SearchTimer);
     FSearchBuffer := '';
     FLastSearchNode := nil;
 
@@ -25318,7 +25319,7 @@ begin
   // Set both panning and scrolling flag. One will be removed shortly depending on whether the middle mouse button is
   // released before the mouse is moved or vice versa. The first case is referred to as wheel scrolling while the
   // latter is called wheel panning.
-  KillTimer(Handle, ScrollTimer);
+  StopTimer(ScrollTimer);
   DoStateChange([tsWheelPanning, tsWheelScrolling]);
 
   if FPanningWindow = nil then
@@ -25361,6 +25362,14 @@ end;
 
 //----------------------------------------------------------------------------------------------------------------------
 
+procedure TBaseVirtualTree.StopTimer(nIDEvent: UINT_PTR);
+begin
+  if HandleAllocated then
+    KillTimer(Handle, nIDEvent);
+end;
+
+//----------------------------------------------------------------------------------------------------------------------
+
 procedure TBaseVirtualTree.StopWheelPanning;
 
 // Stops panning if currently active and destroys the helper window.
@@ -25369,7 +25378,7 @@ begin
   if [tsWheelPanning, tsWheelScrolling] * FStates <> [] then
   begin
     // Release the mouse capture and stop the panscroll timer.
-    KillTimer(Handle, ScrollTimer);
+    StopTimer(ScrollTimer);
     ReleaseCapture;
     DoStateChange([], [tsWheelPanning, tsWheelScrolling]);
 
@@ -26331,12 +26340,12 @@ begin
       DoUpdating(usBeginSynch);
 
       // Stop all timers...
-      KillTimer(Handle, ChangeTimer);
-      KillTimer(Handle, StructureChangeTimer);
-      KillTimer(Handle, ExpandTimer);
-      KillTimer(Handle, EditTimer);
-      KillTimer(Handle, ScrollTimer);
-      KillTimer(Handle, SearchTimer);
+      StopTimer(ChangeTimer);
+      StopTimer(StructureChangeTimer);
+      StopTimer(ExpandTimer);
+      StopTimer(EditTimer);
+      StopTimer(ScrollTimer);
+      StopTimer(SearchTimer);
       FSearchBuffer := '';
       FLastSearchNode := nil;
       DoStateChange([], [tsEditPending, tsScrollPending, tsScrolling, tsIncrementalSearching]);
@@ -32172,7 +32181,7 @@ begin
   InterruptValidation;
   if tsEditPending in FStates then
   begin
-    KillTimer(Handle, EditTimer);
+    StopTimer(EditTimer);
     DoStateChange([], [tsEditPending]);
   end;
 
